@@ -1,0 +1,71 @@
+import { useState } from 'react';
+import { Trash2, Check, X } from 'lucide-react';
+
+export default function DocumentItem({ doc, isActive, onSelect, onDelete }) {
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    onDelete(doc.id || doc._id);
+    setIsConfirmingDelete(false);
+  };
+
+  const handleCancelDelete = (e) => {
+    e.stopPropagation();
+    setIsConfirmingDelete(false);
+  };
+
+  const handlePromptDelete = (e) => {
+    e.stopPropagation();
+    setIsConfirmingDelete(true);
+  };
+
+  return (
+    <div
+      onClick={() => onSelect(doc.id || doc._id)}
+      className={`group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-sm font-medium transition-all select-none ${
+        isActive
+          ? 'bg-neutral-200/90 text-neutral-900 font-semibold shadow-xs'
+          : 'text-neutral-600 hover:bg-neutral-100/80 hover:text-neutral-900'
+      }`}
+    >
+      <div className="flex items-center gap-2 truncate min-w-0 flex-1 mr-1">
+        <span className="text-base shrink-0 select-none">{doc.icon || '📝'}</span>
+        <span className="truncate text-xs sm:text-sm">
+          {doc.title && doc.title.trim() !== '' ? doc.title : 'Untitled'}
+        </span>
+      </div>
+
+      {/* Delete Controls / Confirmation */}
+      {isConfirmingDelete ? (
+        <div className="flex items-center gap-1 shrink-0 animate-in fade-in duration-100" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="p-1 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs transition-colors"
+            title="Confirm Delete"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleCancelDelete}
+            className="p-1 hover:bg-neutral-200 text-neutral-500 rounded text-xs transition-colors"
+            title="Cancel"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handlePromptDelete}
+          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-neutral-300/60 rounded text-neutral-400 hover:text-red-600 transition-all shrink-0"
+          title="Delete document"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}

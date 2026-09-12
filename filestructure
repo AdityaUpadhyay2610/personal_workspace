@@ -1,0 +1,50 @@
+document-workspace/
+├── frontemd/                     # React Frontend (Vite) - Runs on Port 5173
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── common/         # Button.jsx, Modal.jsx, Spinner.jsx
+│   │   │   └── layout/
+│   │   │       ├── Navbar.jsx  # Page title, save indicator, share button
+│   │   │       └── Sidebar/
+│   │   │           ├── Sidebar.jsx
+│   │   │           └── DocumentItem.jsx
+│   │   ├── features/
+│   │   │   └── editor/
+│   │   │       ├── EditorCanvas.jsx
+│   │   │       ├── EditorHeader.jsx
+│   │   │       └── hooks/
+│   │   │           └── useAutoSave.js
+│   │   ├── pages/
+│   │   │   └── Workspace.jsx
+│   │   ├── services/
+│   │   │   ├── api.js          # Axios client configured with backend baseURL
+│   │   │   └── documentService.js
+│   │   ├── store/
+│   │   │   └── useDocumentStore.js
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── .env                    # VITE_API_URL=http://localhost:5000/api
+│   ├── package.json
+│   ├── tailwind.config.js
+│   └── vite.config.js
+│
+├── backend/                     # Express REST API - Runs on Port 5000
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── db.js           # Database connection (MongoDB / PostgreSQL)
+│   │   ├── controllers/
+│   │   │   └── documentController.js # Handles request logic & status codes
+│   │   ├── models/
+│   │   │   └── Document.js     # Data schema (Title, Blocks/Content, ParentId)
+│   │   ├── routes/
+│   │   │   └── documentRoutes.js # Route mappings (GET, POST, PUT, DELETE)
+│   │   ├── middleware/
+│   │   │   └── errorHandler.js # Global error catching middleware
+│   │   └── app.js              # Express app setup, CORS, and route mounting
+│   ├── .env                    # PORT=5000, MONGO_URI=..., CLIENT_URL=http://localhost:5173
+│   ├── package.json
+│   └── server.js               # Entry point (listens on PORT)
+│
+└── README.md                   # Setup guide for running both services
