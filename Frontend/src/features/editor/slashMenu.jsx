@@ -7,7 +7,6 @@ import {
   List,
   ListOrdered,
   Code,
-  Quote,
   Minus,
   Type,
   Table,
@@ -26,7 +25,6 @@ const MENU_ITEMS = [
   { id: 'todo', label: 'To-do list', sub: 'Track tasks with a checkbox.', icon: CheckSquare },
   { id: 'bullet', label: 'Bulleted list', sub: 'Create a simple bulleted list.', icon: List },
   { id: 'numbered', label: 'Numbered list', sub: 'Create an ordered numbered list.', icon: ListOrdered },
-  { id: 'quote', label: 'Quote', sub: 'Capture a quote or key highlight.', icon: Quote },
   { id: 'code', label: 'Code snippet', sub: 'Capture code with syntax styling.', icon: Code },
   { id: 'divider', label: 'Divider', sub: 'Visually separate sections.', icon: Minus },
 ];

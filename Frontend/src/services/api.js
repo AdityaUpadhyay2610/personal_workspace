@@ -1,6 +1,8 @@
 /**
  * Central API Client configuration and request wrapper
+ * Supports automatic JWT bearer authorization, HttpOnly cookies, and silent token refresh
  */
+
 function getApiBaseUrl() {
   const envUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').trim();
   
@@ -19,9 +21,9 @@ function getApiBaseUrl() {
   return url;
 }
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(message, status, data) {
     super(message);
     this.name = 'ApiError';
@@ -30,14 +32,46 @@ class ApiError extends Error {
   }
 }
 
-async function request(endpoint, options = {}) {
+// Token helpers
+export const getAccessToken = () => localStorage.getItem('accessToken');
+export const getRefreshToken = () => localStorage.getItem('refreshToken');
+export const setAuthTokens = (accessToken, refreshToken) => {
+  if (accessToken) localStorage.setItem('accessToken', accessToken);
+  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+};
+export const clearAuthTokens = () => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('isGuest');
+};
+
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function subscribeTokenRefresh(cb) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(newAccessToken) {
+  refreshSubscribers.forEach((cb) => cb(newAccessToken));
+  refreshSubscribers = [];
+}
+
+async function request(endpoint, options = {}, isRetry = false) {
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   const defaultHeaders = {
     'Content-Type': 'application/json',
   };
 
+  const token = getAccessToken();
+  if (token) {
+    defaultHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
   const config = {
+    credentials: 'include', // Automatically includes HttpOnly cookies
     ...options,
     headers: {
       ...defaultHeaders,
@@ -58,6 +92,52 @@ async function request(endpoint, options = {}) {
       data = await res.json();
     } else {
       data = await res.text();
+    }
+
+    // Handle 401 Token Expiration (try silent refresh if not already an auth route)
+    if (res.status === 401 && !isRetry && !endpoint.includes('/auth/')) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const refreshToken = getRefreshToken();
+          const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: refreshToken || undefined }),
+          });
+
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            setAuthTokens(refreshData.accessToken, refreshData.refreshToken);
+            isRefreshing = false;
+            onRefreshed(refreshData.accessToken);
+            return request(endpoint, options, true);
+          } else {
+            isRefreshing = false;
+            clearAuthTokens();
+            window.dispatchEvent(new CustomEvent('auth:expired'));
+          }
+        } catch (err) {
+          isRefreshing = false;
+          clearAuthTokens();
+          window.dispatchEvent(new CustomEvent('auth:expired'));
+        }
+      } else {
+        // Wait for the ongoing refresh to complete
+        return new Promise((resolve) => {
+          subscribeTokenRefresh((newToken) => {
+            const updatedOptions = {
+              ...options,
+              headers: {
+                ...options.headers,
+                Authorization: `Bearer ${newToken}`,
+              },
+            };
+            resolve(request(endpoint, updatedOptions, true));
+          });
+        });
+      }
     }
 
     if (!res.ok) {

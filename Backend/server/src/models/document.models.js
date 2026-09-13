@@ -2,6 +2,12 @@ import mongoose from 'mongoose';
 
 const documentSchema = new mongoose.Schema(
   {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
     title: {
       type: String,
       default: 'Untitled',
@@ -15,14 +21,13 @@ const documentSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-  
     content: {
       type: Array,
       default: [],
     },
   },
   {
-    timestamps: true, 
+    timestamps: true,
   }
 );
 

@@ -6,26 +6,27 @@ import documentServices from '../../../services/documentServices';
  * @param {Object} activeDoc - Current active document object
  * @param {Function} onDocumentUpdated - Callback to notify parent of synced updates
  * @param {number} debounceMs - Debounce delay in milliseconds (default: 600ms)
+ * @param {boolean} isGuest - Flag whether user is in guest mode (skips DB updates)
  */
-export function useAutoSave(activeDoc, onDocumentUpdated, debounceMs = 600) {
-  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'error' | 'idle'
+export function useAutoSave(activeDoc, onDocumentUpdated, debounceMs = 600, isGuest = false) {
+  const [saveStatus, setSaveStatus] = useState(isGuest ? 'guest' : 'saved'); // 'saved' | 'saving' | 'error' | 'guest'
   const pendingChangesRef = useRef({});
   const timerRef = useRef(null);
-  const activeDocIdRef = useRef(activeDoc?._id);
+  const activeDocIdRef = useRef(activeDoc?._id || activeDoc?.id);
 
   // Keep track of the active document id to avoid saving stale doc data across doc switching
   useEffect(() => {
-    // If active doc changed, flush or reset pending timer
-    if (activeDoc?._id !== activeDocIdRef.current) {
+    const currentId = activeDoc?._id || activeDoc?.id;
+    if (currentId !== activeDocIdRef.current) {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
       pendingChangesRef.current = {};
-      activeDocIdRef.current = activeDoc?._id;
-      setSaveStatus('saved');
+      activeDocIdRef.current = currentId;
+      setSaveStatus(isGuest ? 'guest' : 'saved');
     }
-  }, [activeDoc?._id]);
+  }, [activeDoc?._id, activeDoc?.id, isGuest]);
 
   // Clean up timer on unmount
   useEffect(() => {
@@ -36,60 +37,93 @@ export function useAutoSave(activeDoc, onDocumentUpdated, debounceMs = 600) {
     };
   }, []);
 
-  const saveToBackend = useCallback(async (docId, updates) => {
-    if (!docId || Object.keys(updates).length === 0) return;
-    setSaveStatus('saving');
-    try {
-      const updated = await documentServices.update(docId, updates);
-      if (onDocumentUpdated) {
-        onDocumentUpdated(updated);
+  const saveToBackend = useCallback(
+    async (docId, updates) => {
+      if (isGuest) {
+        setSaveStatus('guest');
+        if (onDocumentUpdated) {
+          onDocumentUpdated({ ...activeDoc, ...updates });
+        }
+        return;
       }
-      setSaveStatus('saved');
-    } catch (err) {
-      console.error('Failed to auto-save document:', err);
-      setSaveStatus('error');
-    }
-  }, [onDocumentUpdated]);
 
-  const queueAutoSave = useCallback((updates) => {
-    const docId = activeDoc?._id;
-    if (!docId) return;
+      if (!docId || Object.keys(updates).length === 0) return;
+      setSaveStatus('saving');
+      try {
+        const updated = await documentServices.update(docId, updates);
+        if (onDocumentUpdated) {
+          onDocumentUpdated(updated);
+        }
+        setSaveStatus('saved');
+      } catch (err) {
+        console.error('Failed to auto-save document:', err);
+        setSaveStatus('error');
+      }
+    },
+    [isGuest, activeDoc, onDocumentUpdated]
+  );
 
-    // Merge changes
-    pendingChangesRef.current = {
-      ...pendingChangesRef.current,
-      ...updates,
-    };
+  const queueAutoSave = useCallback(
+    (updates) => {
+      const docId = activeDoc?._id || activeDoc?.id;
+      if (!docId) return;
 
-    setSaveStatus('saving');
+      if (isGuest) {
+        setSaveStatus('guest');
+        if (onDocumentUpdated) {
+          onDocumentUpdated({ ...activeDoc, ...updates });
+        }
+        return;
+      }
 
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
+      // Merge changes
+      pendingChangesRef.current = {
+        ...pendingChangesRef.current,
+        ...updates,
+      };
 
-    timerRef.current = setTimeout(() => {
-      const changesToSave = { ...pendingChangesRef.current };
+      setSaveStatus('saving');
+
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+
+      timerRef.current = setTimeout(() => {
+        const changesToSave = { ...pendingChangesRef.current };
+        pendingChangesRef.current = {};
+        saveToBackend(docId, changesToSave);
+      }, debounceMs);
+    },
+    [activeDoc, isGuest, debounceMs, onDocumentUpdated, saveToBackend]
+  );
+
+  const saveImmediate = useCallback(
+    async (updates) => {
+      const docId = activeDoc?._id || activeDoc?.id;
+      if (!docId) return;
+
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+
+      if (isGuest) {
+        setSaveStatus('guest');
+        if (onDocumentUpdated) {
+          onDocumentUpdated({ ...activeDoc, ...updates });
+        }
+        return;
+      }
+
+      const merged = {
+        ...pendingChangesRef.current,
+        ...updates,
+      };
       pendingChangesRef.current = {};
-      saveToBackend(docId, changesToSave);
-    }, debounceMs);
-  }, [activeDoc?._id, debounceMs, saveToBackend]);
-
-  const saveImmediate = useCallback(async (updates) => {
-    const docId = activeDoc?._id;
-    if (!docId) return;
-
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-
-    const merged = {
-      ...pendingChangesRef.current,
-      ...updates,
-    };
-    pendingChangesRef.current = {};
-    await saveToBackend(docId, merged);
-  }, [activeDoc?._id, saveToBackend]);
+      await saveToBackend(docId, merged);
+    },
+    [activeDoc, isGuest, onDocumentUpdated, saveToBackend]
+  );
 
   return {
     saveStatus,

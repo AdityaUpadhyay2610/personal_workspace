@@ -5,48 +5,110 @@ import EditorHeader from '../features/editor/editorHeader';
 import EditorCanvas from '../features/editor/editorCanvas';
 import documentServices from '../services/documentServices';
 import useAutoSave from '../features/editor/hooks/useAutoSave';
-import { Loader2, AlertTriangle, Plus, RefreshCw } from 'lucide-react';
+import GuestRegisterModal from '../components/auth/GuestRegisterModal';
+import { useAuth } from '../context/AuthContext';
+import { Loader2, AlertTriangle, Plus, RefreshCw, UserPlus } from 'lucide-react';
+
+const GUEST_STARTER_DOC = {
+  _id: 'guest-starter-1',
+  id: 'guest-starter-1',
+  title: 'Welcome to Personal Workspace',
+  icon: '✨',
+  coverImage: '',
+  content: [
+    { id: 'b1', type: 'h1', text: 'Welcome to your Personal Docx Workspace' },
+    {
+      id: 'b2',
+      type: 'paragraph',
+      text: 'This is an interactive document editor. You can write rich text, insert code blocks, tables, and Kanban boards.',
+    },
+    {
+      id: 'b3',
+      type: 'todo',
+      text: 'Try creating new blocks using the "/" slash command menu',
+      checked: false,
+    },
+    {
+      id: 'b4',
+      type: 'todo',
+      text: 'Sign up for a free account to enable permanent cloud auto-save',
+      checked: false,
+    },
+    {
+      id: 'b5',
+      type: 'table',
+      headers: ['Feature', 'Guest Mode', 'Registered User'],
+      rows: [
+        ['Local Editing & Formatting', '✅ Full Access', '✅ Full Access'],
+        ['DOCX File Export', '✅ Instant Download', '✅ Instant Download'],
+        ['Cloud Auto-Save & Sync', '❌ In-memory only', '✅ Multi-device Sync'],
+        ['Private Isolated Storage', '❌ In-memory only', '✅ Encrypted DB'],
+      ],
+    },
+  ],
+};
 
 export default function Workspace() {
-  const [documents, setDocuments] = useState([]);
-  const [activeDoc, setActiveDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, isGuest, logout, isRegisterModalOpen, openRegisterModal, closeRegisterModal } = useAuth();
+
+  const [documents, setDocuments] = useState(() => (isGuest ? [GUEST_STARTER_DOC] : []));
+  const [activeDoc, setActiveDoc] = useState(() => (isGuest ? GUEST_STARTER_DOC : null));
+  const [loading, setLoading] = useState(!isGuest);
   const [error, setError] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Hook to handle auto-saving and track saveStatus: 'saved' | 'saving' | 'error'
+  // Hook to handle auto-saving and track saveStatus: 'saved' | 'saving' | 'error' | 'guest'
   const { saveStatus, queueAutoSave, saveImmediate } = useAutoSave(
     activeDoc,
     (updatedDoc) => {
-      if (updatedDoc?._id) {
-        // Update document title/icon in sidebar list if changed
+      if (updatedDoc) {
+        const docId = updatedDoc._id || updatedDoc.id;
         setDocuments((prev) =>
           prev.map((doc) =>
-            doc._id === updatedDoc._id
-              ? { ...doc, title: updatedDoc.title, icon: updatedDoc.icon, updatedAt: updatedDoc.updatedAt }
+            (doc._id || doc.id) === docId
+              ? { ...doc, title: updatedDoc.title, icon: updatedDoc.icon, updatedAt: new Date().toISOString() }
               : doc
           )
         );
       }
     },
-    500
+    500,
+    isGuest
   );
 
   // Load a single document by ID
-  const loadDocument = useCallback(async (id) => {
-    if (!id) return;
-    try {
-      const doc = await documentServices.getById(id);
-      setActiveDoc(doc);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to load document:', err);
-      setError('Could not load the requested document.');
-    }
-  }, []);
+  const loadDocument = useCallback(
+    async (id) => {
+      if (!id) return;
 
-  // Fetch initial document list on mount
+      if (isGuest) {
+        const found = documents.find((d) => (d._id || d.id) === id);
+        if (found) {
+          setActiveDoc(found);
+          setError(null);
+        }
+        return;
+      }
+
+      try {
+        const doc = await documentServices.getById(id);
+        setActiveDoc(doc);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load document:', err);
+        setError('Could not load the requested document.');
+      }
+    },
+    [isGuest, documents]
+  );
+
+  // Fetch initial document list on mount for logged in user
   const fetchAllDocs = useCallback(async () => {
+    if (isGuest) {
+      setLoading(false);
+      return;
+    }
+
     setError(null);
     try {
       const data = await documentServices.getAll();
@@ -58,14 +120,21 @@ export default function Workspace() {
         setActiveDoc(null);
       }
     } catch (err) {
-      console.error('Failed to fetch documents:', err);
-      setError('Unable to connect to the backend server. Please verify the backend is running.');
+      console.error('Failed to fetch user documents:', err);
+      setError('Unable to load your documents. Please verify your connection.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isGuest]);
 
   useEffect(() => {
+    if (isGuest) {
+      setDocuments([GUEST_STARTER_DOC]);
+      setActiveDoc(GUEST_STARTER_DOC);
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function initialize() {
@@ -82,7 +151,7 @@ export default function Workspace() {
       } catch (err) {
         if (isMounted) {
           console.error('Failed to initialize documents:', err);
-          setError('Unable to connect to the backend server. Please verify the backend is running.');
+          setError('Unable to load documents from database.');
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -94,7 +163,7 @@ export default function Workspace() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isGuest]);
 
   // Update browser tab title based on current document
   useEffect(() => {
@@ -107,6 +176,24 @@ export default function Workspace() {
 
   // Create new document
   const handleCreateDoc = async () => {
+    if (isGuest) {
+      const newGuestDoc = {
+        _id: `guest-${crypto.randomUUID()}`,
+        id: `guest-${crypto.randomUUID()}`,
+        title: 'Untitled Document',
+        icon: '📝',
+        coverImage: '',
+        content: [
+          { id: crypto.randomUUID(), type: 'h1', text: 'New Page' },
+          { id: crypto.randomUUID(), type: 'paragraph', text: 'Start typing or press "/" to insert blocks...' },
+        ],
+      };
+      setDocuments((prev) => [newGuestDoc, ...prev]);
+      setActiveDoc(newGuestDoc);
+      setError(null);
+      return;
+    }
+
     try {
       const newDoc = await documentServices.create({
         title: 'Untitled Document',
@@ -123,22 +210,24 @@ export default function Workspace() {
       setError(null);
     } catch (err) {
       console.error('Failed to create document:', err);
-      setError('Failed to create a new document.');
+      setError('Failed to create a new document in database.');
     }
   };
 
   // Switch to another document
   const handleSelectDoc = async (id) => {
-    if (activeDoc && activeDoc._id === id) return;
+    const activeId = activeDoc?._id || activeDoc?.id;
+    if (activeDoc && activeId === id) return;
     await loadDocument(id);
   };
 
   // Update title
   const handleTitleChange = (newTitle) => {
     if (!activeDoc) return;
+    const docId = activeDoc._id || activeDoc.id;
     setActiveDoc((prev) => ({ ...prev, title: newTitle }));
     setDocuments((prev) =>
-      prev.map((doc) => (doc._id === activeDoc._id ? { ...doc, title: newTitle } : doc))
+      prev.map((doc) => ((doc._id || doc.id) === docId ? { ...doc, title: newTitle } : doc))
     );
     queueAutoSave({ title: newTitle });
   };
@@ -146,9 +235,10 @@ export default function Workspace() {
   // Update icon
   const handleIconChange = (newIcon) => {
     if (!activeDoc) return;
+    const docId = activeDoc._id || activeDoc.id;
     setActiveDoc((prev) => ({ ...prev, icon: newIcon }));
     setDocuments((prev) =>
-      prev.map((doc) => (doc._id === activeDoc._id ? { ...doc, icon: newIcon } : doc))
+      prev.map((doc) => ((doc._id || doc.id) === docId ? { ...doc, icon: newIcon } : doc))
     );
     saveImmediate({ icon: newIcon });
   };
@@ -169,36 +259,50 @@ export default function Workspace() {
 
   // Delete a document
   const handleDeleteDoc = async (id) => {
-    try {
-      const remaining = documents.filter((doc) => doc._id !== id);
-      setDocuments(remaining);
+    const activeId = activeDoc?._id || activeDoc?.id;
+    const remaining = documents.filter((doc) => (doc._id || doc.id) !== id);
+    setDocuments(remaining);
 
-      if (activeDoc && activeDoc._id === id) {
-        if (remaining.length > 0) {
-          loadDocument(remaining[0]._id);
-        } else {
-          setActiveDoc(null);
-        }
+    if (activeDoc && activeId === id) {
+      if (remaining.length > 0) {
+        loadDocument(remaining[0]._id || remaining[0].id);
+      } else {
+        setActiveDoc(null);
       }
+    }
 
-      await documentServices.delete(id);
-    } catch (err) {
-      console.error('Failed to delete document:', err);
-      setError('Failed to delete document from database.');
-      // Refresh list to restore correct state
-      fetchAllDocs();
+    if (!isGuest) {
+      try {
+        await documentServices.delete(id);
+      } catch (err) {
+        console.error('Failed to delete document:', err);
+        setError('Failed to delete document from database.');
+        fetchAllDocs();
+      }
     }
   };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white">
+      {/* Guest Register / Save Warning Modal */}
+      <GuestRegisterModal
+        isOpen={isRegisterModalOpen}
+        onClose={closeRegisterModal}
+        currentDocTitle={activeDoc?.title || 'Untitled'}
+        currentDocContent={activeDoc?.content || []}
+      />
+
       {/* Sidebar Navigation */}
       <Sidebar
-        documents={documents.map((d) => ({ ...d, id: d._id }))}
-        activeDocId={activeDoc?._id}
+        documents={documents.map((d) => ({ ...d, id: d._id || d.id }))}
+        activeDocId={activeDoc?._id || activeDoc?.id}
+        user={user}
+        isGuest={isGuest}
         onSelectDoc={handleSelectDoc}
         onCreateDoc={handleCreateDoc}
         onDeleteDoc={handleDeleteDoc}
+        onLogout={logout}
+        onTriggerAuth={openRegisterModal}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -208,7 +312,7 @@ export default function Workspace() {
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center text-sm text-neutral-400 gap-3">
             <Loader2 className="w-6 h-6 animate-spin text-neutral-500" />
-            <p>Loading documents...</p>
+            <p>Loading your documents...</p>
           </div>
         ) : error ? (
           <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
@@ -220,7 +324,7 @@ export default function Workspace() {
             <button
               type="button"
               onClick={fetchAllDocs}
-              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-medium hover:bg-neutral-800 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-medium hover:bg-neutral-800 transition-colors shadow-sm cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Retry</span>
@@ -233,13 +337,15 @@ export default function Workspace() {
               title={activeDoc.title}
               saveStatus={saveStatus}
               content={activeDoc.content || []}
+              isGuest={isGuest}
               onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+              onGuestSavePrompt={openRegisterModal}
             />
 
             {/* Scrollable Document Area */}
             <div className="flex-1 overflow-y-auto">
               <EditorHeader
-                key={`header-${activeDoc._id}`}
+                key={`header-${activeDoc._id || activeDoc.id}`}
                 title={activeDoc.title}
                 icon={activeDoc.icon}
                 coverImage={activeDoc.coverImage}
@@ -248,7 +354,7 @@ export default function Workspace() {
                 onCoverChange={handleCoverChange}
               />
               <EditorCanvas
-                key={`canvas-${activeDoc._id}`}
+                key={`canvas-${activeDoc._id || activeDoc.id}`}
                 blocks={activeDoc.content || []}
                 onUpdateBlocks={handleUpdateBlocks}
                 title={activeDoc.title}
@@ -268,7 +374,7 @@ export default function Workspace() {
             <button
               type="button"
               onClick={handleCreateDoc}
-              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-neutral-900 hover:bg-neutral-800 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95"
+              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-neutral-900 hover:bg-neutral-800 px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Create New Page</span>

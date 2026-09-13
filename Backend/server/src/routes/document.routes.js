@@ -6,8 +6,12 @@ import {
   updateDocument,
   deleteDocument,
 } from '../controllers/document.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
+
+// Enforce authentication on all document operations
+router.use(authMiddleware);
 
 router.get('/', getAllDocuments);
 router.get('/:id', getDocumentById);

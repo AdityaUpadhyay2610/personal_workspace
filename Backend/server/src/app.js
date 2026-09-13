@@ -1,8 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import documentRoutes from './routes/document.routes.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
+
+app.use(cookieParser());
 
 // Enable CORS for local dev servers, configured CLIENT_URL, and Vercel domains
 const allowedOrigins = [
@@ -59,7 +63,8 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
 
-// Mount Document Routes
+// Mount Auth & Document Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 
 // 404 Handler for undefined API routes

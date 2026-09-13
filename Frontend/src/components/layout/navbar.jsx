@@ -11,6 +11,8 @@ import {
   Minimize2,
   Menu,
   FileDown,
+  Sparkles,
+  UserPlus,
 } from 'lucide-react';
 import { exportToDocx } from '../../services/docxExport';
 
@@ -18,7 +20,9 @@ export default function Navbar({
   title = 'Untitled',
   saveStatus = 'saved',
   content = [],
+  isGuest = false,
   onToggleSidebar,
+  onGuestSavePrompt,
 }) {
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -32,6 +36,11 @@ export default function Navbar({
   }, 0);
 
   const handleDownloadDocx = async () => {
+    if (isGuest && onGuestSavePrompt) {
+      onGuestSavePrompt();
+      return;
+    }
+
     try {
       setIsExportingDocx(true);
       await exportToDocx(title, content);
@@ -114,31 +123,47 @@ export default function Navbar({
 
         <span className="text-neutral-400 font-medium text-xs hidden lg:inline">Workspace</span>
         <span className="text-neutral-300 hidden lg:inline">/</span>
-        <span className="font-semibold text-neutral-800 text-xs sm:text-sm truncate max-w-[100px] xs:max-w-[140px] sm:max-w-[220px] md:max-w-[300px]">
+        <span className="font-semibold text-neutral-800 text-xs sm:text-sm truncate max-w-[100px] xs:max-w-[140px] sm:max-w-[200px] md:max-w-[260px]">
           {title && title.trim() !== '' ? title : 'Untitled'}
         </span>
 
         {/* Dynamic Save State Indicator */}
         <div className="flex items-center gap-1 text-xs pl-1 sm:pl-2 shrink-0">
-          {saveStatus === 'saving' && (
-            <span className="flex items-center gap-1 text-amber-600 font-medium bg-amber-50 px-1.5 sm:px-2 py-0.5 rounded-full">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span className="text-[10px] sm:text-[11px] hidden xs:inline">Saving...</span>
+          {isGuest ? (
+            <span
+              onClick={onGuestSavePrompt}
+              className="flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200/70 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold cursor-pointer hover:bg-amber-100 transition-colors"
+              title="Guest Mode: Click to register and enable cloud autosave"
+            >
+              <Sparkles className="w-3 h-3 text-amber-500" />
+              <span>Guest Mode (Not Saved)</span>
             </span>
-          )}
+          ) : (
+            <>
+              {saveStatus === 'saving' && (
+                <span className="flex items-center gap-1 text-amber-600 font-medium bg-amber-50 px-1.5 sm:px-2 py-0.5 rounded-full">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span className="text-[10px] sm:text-[11px] hidden xs:inline">Saving...</span>
+                </span>
+              )}
 
-          {saveStatus === 'saved' && (
-            <span className="flex items-center gap-1 text-emerald-600 font-medium bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded-full">
-              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-              <span className="text-[10px] sm:text-[11px] hidden xs:inline">Saved</span>
-            </span>
-          )}
+              {saveStatus === 'saved' && (
+                <span className="flex items-center gap-1 text-emerald-600 font-medium bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded-full">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                  <span className="text-[10px] sm:text-[11px] hidden xs:inline">Cloud Saved</span>
+                </span>
+              )}
 
-          {saveStatus === 'error' && (
-            <span className="flex items-center gap-1 text-red-600 font-medium bg-red-50 px-1.5 sm:px-2 py-0.5 rounded-full" title="Changes not saved">
-              <AlertCircle className="w-3 h-3 text-red-500" />
-              <span className="text-[10px] sm:text-[11px] hidden xs:inline">Error</span>
-            </span>
+              {saveStatus === 'error' && (
+                <span
+                  className="flex items-center gap-1 text-red-600 font-medium bg-red-50 px-1.5 sm:px-2 py-0.5 rounded-full"
+                  title="Changes not saved to cloud"
+                >
+                  <AlertCircle className="w-3 h-3 text-red-500" />
+                  <span className="text-[10px] sm:text-[11px] hidden xs:inline">Save Error</span>
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -148,16 +173,30 @@ export default function Navbar({
         {/* Document Stats Badge */}
         <div className="hidden md:flex items-center gap-1 text-xs text-neutral-400 bg-neutral-100 px-2.5 py-1 rounded-md">
           <FileText className="w-3 h-3 text-neutral-500" />
-          <span>{totalWords} {totalWords === 1 ? 'word' : 'words'}</span>
+          <span>
+            {totalWords} {totalWords === 1 ? 'word' : 'words'}
+          </span>
         </div>
 
-        {/* Save/Export to DOCX on Device */}
+        {/* Guest Register CTA Button */}
+        {isGuest && (
+          <button
+            type="button"
+            onClick={onGuestSavePrompt}
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-xs font-semibold text-neutral-900 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors cursor-pointer border border-neutral-200"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Register to Save</span>
+          </button>
+        )}
+
+        {/* Save/Export to DOCX Button */}
         <button
           type="button"
           onClick={handleDownloadDocx}
           disabled={isExportingDocx}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-md transition-all shadow-xs hover:shadow-sm disabled:opacity-50 cursor-pointer"
-          title="Download as Microsoft Word (.docx) to device"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-md transition-all shadow-xs hover:shadow-sm disabled:opacity-50 cursor-pointer"
+          title={isGuest ? 'Click to register and save document' : 'Save as Microsoft Word (.docx) file'}
         >
           {isExportingDocx ? (
             <>
@@ -167,8 +206,7 @@ export default function Navbar({
           ) : (
             <>
               <FileDown className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Save DOCX</span>
-              <span className="sm:hidden text-[11px]">DOCX</span>
+              <span>Save DOCX</span>
             </>
           )}
         </button>
@@ -177,7 +215,7 @@ export default function Navbar({
         <button
           type="button"
           onClick={handleCopyMarkdown}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors"
+          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors cursor-pointer"
           title="Copy document content as Markdown"
         >
           {copied ? (
@@ -200,18 +238,18 @@ export default function Navbar({
             navigator.clipboard.writeText(window.location.href);
             alert('Document link copied to clipboard!');
           }}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors"
+          className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors cursor-pointer"
           title="Share document link"
         >
           <Share2 className="w-3.5 h-3.5 text-neutral-500" />
-          <span className="hidden sm:inline">Share</span>
+          <span>Share</span>
         </button>
 
         {/* Fullscreen Toggle */}
         <button
           type="button"
           onClick={toggleFullscreen}
-          className="hidden sm:flex p-1.5 hover:bg-neutral-100 rounded-md text-neutral-500 hover:text-neutral-800 transition-colors"
+          className="hidden sm:flex p-1.5 hover:bg-neutral-100 rounded-md text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer"
           title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
         >
           {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
