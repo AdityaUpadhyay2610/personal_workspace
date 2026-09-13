@@ -33,13 +33,21 @@ export class ApiError extends Error {
 }
 
 // Token helpers (Only short-lived access token is stored; refresh token is strictly HttpOnly Cookie)
+// Automatically purge any old refreshToken stored from previous test sessions
+try {
+  localStorage.removeItem('refreshToken');
+} catch (_) {}
+
 export const getAccessToken = () => localStorage.getItem('accessToken');
 export const setAccessToken = (accessToken) => {
   if (accessToken) localStorage.setItem('accessToken', accessToken);
+  try {
+    localStorage.removeItem('refreshToken');
+  } catch (_) {}
 };
 export const clearAuthTokens = () => {
   localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken'); // clean up any legacy token
+  localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
   localStorage.removeItem('isGuest');
 };
