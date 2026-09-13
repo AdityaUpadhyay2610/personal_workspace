@@ -1,9 +1,25 @@
 /**
  * Central API Client configuration and request wrapper
  */
-const rawBaseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-const cleanBaseUrl = rawBaseUrl.replace(/\/+$/, '');
-const API_BASE_URL = cleanBaseUrl.endsWith('/api') ? cleanBaseUrl : `${cleanBaseUrl}/api`;
+function getApiBaseUrl() {
+  const envUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').trim();
+  
+  // Remove trailing slashes
+  let url = envUrl.replace(/\/+$/, '');
+  
+  // If the URL accidentally contains endpoint paths like /api/documents or /documents, strip them back
+  url = url.replace(/\/api\/documents\/?$/, '');
+  url = url.replace(/\/documents\/?$/, '');
+  
+  // Ensure the base URL ends with /api
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  
+  return url;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiError extends Error {
   constructor(message, status, data) {

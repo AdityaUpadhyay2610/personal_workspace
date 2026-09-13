@@ -4,7 +4,7 @@ import documentRoutes from './routes/document.routes.js';
 
 const app = express();
 
-// Enable CORS for local dev servers (5173, 5174, etc.) and configured CLIENT_URL
+// Enable CORS for local dev servers, configured CLIENT_URL, and Vercel domains
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -13,19 +13,41 @@ const allowedOrigins = [
 ];
 
 if (process.env.CLIENT_URL) {
-  allowedOrigins.push(process.env.CLIENT_URL);
+  process.env.CLIENT_URL.split(',').forEach((url) => {
+    const trimmed = url.trim().replace(/\/+$/, '');
+    if (trimmed) allowedOrigins.push(trimmed);
+  });
 }
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      // Allow requests with no origin (like curl, mobile apps, or server-to-server)
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.replace(/\/+$/, '');
+      let isAllowed = allowedOrigins.some((allowed) => allowed.replace(/\/+$/, '') === normalizedOrigin);
+
+      // Automatically allow Vercel app domains
+      if (!isAllowed) {
+        try {
+          const parsed = new URL(origin);
+          if (parsed.hostname.endsWith('.vercel.app')) {
+            isAllowed = true;
+          }
+        } catch (_) {
+          // ignore parsing error
+        }
+      }
+
+      if (isAllowed || process.env.NODE_ENV !== 'production') {
         return callback(null, true);
       }
-      return callback(new Error('Not allowed by CORS'));
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 );
 
