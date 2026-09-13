@@ -70,7 +70,7 @@ export const register = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    // Set secure HttpOnly cookie for refresh token
+    // Set secure HttpOnly cookie for refresh token (NEVER exposed to client JS)
     res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
 
     return res.status(201).json({
@@ -81,7 +81,6 @@ export const register = async (req, res) => {
         email: user.email,
       },
       accessToken,
-      refreshToken, // returned as fallback
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -115,7 +114,7 @@ export const login = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    // Set secure HttpOnly cookie for refresh token
+    // Set secure HttpOnly cookie for refresh token (NEVER exposed to client JS)
     res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
 
     return res.status(200).json({
@@ -126,7 +125,6 @@ export const login = async (req, res) => {
         email: user.email,
       },
       accessToken,
-      refreshToken, // returned as fallback
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -134,7 +132,7 @@ export const login = async (req, res) => {
   }
 };
 
-// POST /api/auth/refresh (Generate new access token using HttpOnly cookie or body refresh token)
+// POST /api/auth/refresh (Generate new access token using HttpOnly cookie)
 export const refreshAccessToken = async (req, res) => {
   try {
     const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
@@ -169,7 +167,6 @@ export const refreshAccessToken = async (req, res) => {
 
     return res.status(200).json({
       accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
     });
   } catch (error) {
     console.error('Token refresh error:', error);

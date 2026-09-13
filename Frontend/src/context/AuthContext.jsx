@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authServices from '../services/authServices';
-import { getAccessToken, getRefreshToken, clearAuthTokens } from '../services/api';
+import { getAccessToken, clearAuthTokens } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -27,9 +27,8 @@ export function AuthProvider({ children }) {
 
     async function checkAuth() {
       const token = getAccessToken();
-      const refreshToken = getRefreshToken();
 
-      if (token || refreshToken) {
+      if (token) {
         try {
           const res = await authServices.getMe();
           if (isMounted && res?.user) {
@@ -38,35 +37,41 @@ export function AuthProvider({ children }) {
             setIsGuest(false);
           }
         } catch (err) {
-          console.warn('Initial session validation failed:', err);
-          if (refreshToken) {
-            try {
-              const refreshRes = await authServices.refresh(refreshToken);
-              if (refreshRes && isMounted) {
-                const profileRes = await authServices.getMe();
-                if (isMounted && profileRes?.user) {
-                  setUser(profileRes.user);
-                  localStorage.setItem('user', JSON.stringify(profileRes.user));
-                  setIsGuest(false);
-                }
-              }
-            } catch {
-              if (isMounted) {
-                clearAuthTokens();
-                setUser(null);
+          console.warn('Access token expired, attempting silent cookie refresh:', err);
+          try {
+            const refreshRes = await authServices.refresh();
+            if (refreshRes && isMounted) {
+              const profileRes = await authServices.getMe();
+              if (isMounted && profileRes?.user) {
+                setUser(profileRes.user);
+                localStorage.setItem('user', JSON.stringify(profileRes.user));
+                setIsGuest(false);
               }
             }
-          } else {
+          } catch {
             if (isMounted) {
               clearAuthTokens();
               setUser(null);
             }
           }
         }
-      } else if (localStorage.getItem('isGuest') === 'true') {
-        if (isMounted) {
-          setIsGuest(true);
-          setUser(null);
+      } else {
+        // Attempt silent cookie refresh even if access token is empty
+        try {
+          const refreshRes = await authServices.refresh();
+          if (refreshRes && isMounted) {
+            const profileRes = await authServices.getMe();
+            if (isMounted && profileRes?.user) {
+              setUser(profileRes.user);
+              localStorage.setItem('user', JSON.stringify(profileRes.user));
+              setIsGuest(false);
+            }
+          }
+        } catch {
+          if (localStorage.getItem('isGuest') === 'true' && isMounted) {
+            setIsGuest(true);
+            setUser(null);
+          }
         }
       }
 

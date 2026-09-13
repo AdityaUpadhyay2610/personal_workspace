@@ -1,4 +1,4 @@
-import api, { setAuthTokens, clearAuthTokens, getRefreshToken } from './api';
+import api, { setAccessToken, clearAuthTokens } from './api';
 
 export const authServices = {
   /**
@@ -6,8 +6,8 @@ export const authServices = {
    */
   async register(data) {
     const res = await api.post('/auth/register', data);
-    if (res.accessToken && res.refreshToken) {
-      setAuthTokens(res.accessToken, res.refreshToken);
+    if (res.accessToken) {
+      setAccessToken(res.accessToken);
       if (res.user) {
         localStorage.setItem('user', JSON.stringify(res.user));
       }
@@ -21,8 +21,8 @@ export const authServices = {
    */
   async login(credentials) {
     const res = await api.post('/auth/login', credentials);
-    if (res.accessToken && res.refreshToken) {
-      setAuthTokens(res.accessToken, res.refreshToken);
+    if (res.accessToken) {
+      setAccessToken(res.accessToken);
       if (res.user) {
         localStorage.setItem('user', JSON.stringify(res.user));
       }
@@ -32,25 +32,22 @@ export const authServices = {
   },
 
   /**
-   * Refresh access token
+   * Refresh access token using secure HttpOnly cookie
    */
-  async refresh(refreshToken) {
-    const res = await api.post('/auth/refresh', { refreshToken });
-    if (res.accessToken && res.refreshToken) {
-      setAuthTokens(res.accessToken, res.refreshToken);
+  async refresh() {
+    const res = await api.post('/auth/refresh', {});
+    if (res.accessToken) {
+      setAccessToken(res.accessToken);
     }
     return res;
   },
 
   /**
-   * Log out user
+   * Log out user and clear session
    */
   async logout() {
     try {
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        await api.post('/auth/logout', { refreshToken });
-      }
+      await api.post('/auth/logout', {});
     } catch (err) {
       console.warn('Logout server notification failed:', err);
     } finally {

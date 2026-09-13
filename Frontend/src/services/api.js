@@ -32,16 +32,14 @@ export class ApiError extends Error {
   }
 }
 
-// Token helpers
+// Token helpers (Only short-lived access token is stored; refresh token is strictly HttpOnly Cookie)
 export const getAccessToken = () => localStorage.getItem('accessToken');
-export const getRefreshToken = () => localStorage.getItem('refreshToken');
-export const setAuthTokens = (accessToken, refreshToken) => {
+export const setAccessToken = (accessToken) => {
   if (accessToken) localStorage.setItem('accessToken', accessToken);
-  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
 };
 export const clearAuthTokens = () => {
   localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('refreshToken'); // clean up any legacy token
   localStorage.removeItem('user');
   localStorage.removeItem('isGuest');
 };
@@ -71,7 +69,7 @@ async function request(endpoint, options = {}, isRetry = false) {
   }
 
   const config = {
-    credentials: 'include', // Automatically includes HttpOnly cookies
+    credentials: 'include', // Transmits HttpOnly cookie securely
     ...options,
     headers: {
       ...defaultHeaders,
@@ -94,22 +92,21 @@ async function request(endpoint, options = {}, isRetry = false) {
       data = await res.text();
     }
 
-    // Handle 401 Token Expiration (try silent refresh if not already an auth route)
+    // Handle 401 Token Expiration (try silent refresh via HttpOnly cookie)
     if (res.status === 401 && !isRetry && !endpoint.includes('/auth/')) {
       if (!isRefreshing) {
         isRefreshing = true;
         try {
-          const refreshToken = getRefreshToken();
           const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken: refreshToken || undefined }),
+            body: JSON.stringify({}),
           });
 
           if (refreshRes.ok) {
             const refreshData = await refreshRes.json();
-            setAuthTokens(refreshData.accessToken, refreshData.refreshToken);
+            setAccessToken(refreshData.accessToken);
             isRefreshing = false;
             onRefreshed(refreshData.accessToken);
             return request(endpoint, options, true);
