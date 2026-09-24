@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Document from '../models/document.models.js';
+import { validateDocumentInput } from '../utils/validation.js';
 
 // Helper to check valid Mongo ObjectId
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -51,12 +52,20 @@ export const createDocument = async (req, res) => {
     }
 
     const { title, icon, coverImage, content } = req.body;
-    const newDoc = await Document.create({
-      userId,
+    const payload = {
       title: title ?? 'Untitled',
       icon: icon ?? '📝',
       coverImage: coverImage ?? '',
       content: content ?? [],
+    };
+    const validationErrors = validateDocumentInput(payload);
+    if (Object.keys(validationErrors).length > 0) return res.status(400).json({ error: 'Invalid document data', fields: validationErrors });
+    const newDoc = await Document.create({
+      userId,
+      title: payload.title.trim(),
+      icon: payload.icon,
+      coverImage: payload.coverImage,
+      content: payload.content,
     });
 
     return res.status(201).json(newDoc);
@@ -79,6 +88,9 @@ export const updateDocument = async (req, res) => {
     // Disallow overriding userId
     const updates = { ...req.body };
     delete updates.userId;
+    const validationErrors = validateDocumentInput(updates, { partial: true });
+    if (Object.keys(validationErrors).length > 0) return res.status(400).json({ error: 'Invalid document data', fields: validationErrors });
+    if (updates.title !== undefined) updates.title = updates.title.trim();
 
     const updatedDoc = await Document.findOneAndUpdate(
       { _id: id, userId },
@@ -93,6 +105,7 @@ export const updateDocument = async (req, res) => {
     return res.status(200).json(updatedDoc);
   } catch (error) {
     console.error('Error updating document:', error);
+    if (error.name === 'ValidationError' || error.name === 'CastError') return res.status(400).json({ error: 'Invalid document data', details: error.message });
     return res.status(500).json({ error: 'Failed to update document', details: error.message });
   }
 };

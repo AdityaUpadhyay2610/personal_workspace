@@ -7,7 +7,7 @@ import documentServices from '../services/documentServices';
 import useAutoSave from '../features/editor/hooks/useAutoSave';
 import GuestRegisterModal from '../components/auth/GuestRegisterModal';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, AlertTriangle, Plus, RefreshCw, UserPlus } from 'lucide-react';
+import { Loader2, AlertTriangle, Plus, RefreshCw } from 'lucide-react';
 
 const GUEST_STARTER_DOC = {
   _id: 'guest-starter-1',
@@ -56,6 +56,7 @@ export default function Workspace() {
   const [loading, setLoading] = useState(!isGuest);
   const [error, setError] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeBlockId, setActiveBlockId] = useState(null);
 
   // Hook to handle auto-saving and track saveStatus: 'saved' | 'saving' | 'error' | 'guest'
   const { saveStatus, queueAutoSave, saveImmediate } = useAutoSave(
@@ -129,6 +130,8 @@ export default function Workspace() {
 
   useEffect(() => {
     if (isGuest) {
+      // Guest mode is initialized from auth state and kept in sync when auth changes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDocuments([GUEST_STARTER_DOC]);
       setActiveDoc(GUEST_STARTER_DOC);
       setLoading(false);
@@ -257,6 +260,34 @@ export default function Workspace() {
     queueAutoSave({ content: newBlocks });
   };
 
+  const handleFormatChange = (styleUpdates) => {
+    if (!activeDoc || !activeBlockId) return;
+    const updatedBlocks = (activeDoc.content || []).map((block) => (
+      block.id === activeBlockId
+        ? { ...block, style: { ...(block.style || {}), ...styleUpdates } }
+        : block
+    ));
+    handleUpdateBlocks(updatedBlocks);
+  };
+
+  const handleInsertBlock = (type) => {
+    if (!activeDoc) return;
+    const block = {
+      id: crypto.randomUUID(),
+      type,
+      text: type === 'divider' ? '' : '',
+      checked: type === 'todo' ? false : undefined,
+    };
+    if (type === 'table') {
+      block.headers = ['Name', 'Tag', 'Notes'];
+      block.rows = [['', '', '']];
+    }
+    if (type === 'board') {
+      block.columns = [{ id: crypto.randomUUID(), title: 'To Do', color: 'amber', cards: [] }];
+    }
+    handleUpdateBlocks([...(activeDoc.content || []), block]);
+  };
+
   // Delete a document
   const handleDeleteDoc = async (id) => {
     const activeId = activeDoc?._id || activeDoc?.id;
@@ -340,6 +371,9 @@ export default function Workspace() {
               isGuest={isGuest}
               onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               onGuestSavePrompt={openRegisterModal}
+              onInsertBlock={handleInsertBlock}
+              activeBlock={(activeDoc.content || []).find((block) => block.id === activeBlockId)}
+              onFormatChange={handleFormatChange}
             />
 
             {/* Scrollable Document Area */}
@@ -358,6 +392,7 @@ export default function Workspace() {
                 blocks={activeDoc.content || []}
                 onUpdateBlocks={handleUpdateBlocks}
                 title={activeDoc.title}
+                onActiveBlockChange={setActiveBlockId}
               />
             </div>
           </>

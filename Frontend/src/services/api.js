@@ -36,14 +36,18 @@ export class ApiError extends Error {
 // Automatically purge any old refreshToken stored from previous test sessions
 try {
   localStorage.removeItem('refreshToken');
-} catch (_) {}
+} catch (error) {
+  console.warn('Unable to clear legacy refresh token:', error);
+}
 
 export const getAccessToken = () => localStorage.getItem('accessToken');
 export const setAccessToken = (accessToken) => {
   if (accessToken) localStorage.setItem('accessToken', accessToken);
   try {
     localStorage.removeItem('refreshToken');
-  } catch (_) {}
+  } catch (error) {
+    console.warn('Unable to clear legacy refresh token:', error);
+  }
 };
 export const clearAuthTokens = () => {
   localStorage.removeItem('accessToken');
@@ -124,6 +128,7 @@ async function request(endpoint, options = {}, isRetry = false) {
             window.dispatchEvent(new CustomEvent('auth:expired'));
           }
         } catch (err) {
+          console.warn('Token refresh request failed:', err);
           isRefreshing = false;
           clearAuthTokens();
           window.dispatchEvent(new CustomEvent('auth:expired'));

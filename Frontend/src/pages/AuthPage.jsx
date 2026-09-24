@@ -6,8 +6,8 @@ import {
   Lock,
   Loader2,
   AlertCircle,
-  Check,
 } from 'lucide-react';
+import { validateAuthData } from '../services/validation';
 
 export default function AuthPage({ defaultMode = 'login' }) {
   const [isLogin, setIsLogin] = useState(defaultMode === 'login');
@@ -28,11 +28,12 @@ export default function AuthPage({ defaultMode = 'login' }) {
 
     try {
       if (isLogin) {
+        const validationError = validateAuthData({ email, password });
+        if (validationError) throw new Error(validationError);
         await login({ email, password });
       } else {
-        if (!name.trim()) {
-          throw new Error('Please enter your full name');
-        }
+        const validationError = validateAuthData({ name, email, password }, { requireName: true });
+        if (validationError) throw new Error(validationError);
         await register({ name, email, password });
       }
     } catch (err) {
@@ -142,6 +143,7 @@ export default function AuthPage({ defaultMode = 'login' }) {
                     type="text"
                     required
                     value={name}
+                    maxLength={80}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Full Name"
                     className="w-full bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none font-medium"
@@ -160,6 +162,7 @@ export default function AuthPage({ defaultMode = 'login' }) {
                   type="email"
                   required
                   value={email}
+                  maxLength={254}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={isLogin ? 'User Name / Email' : 'Email Address'}
                   className="w-full bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none font-medium"
@@ -173,6 +176,7 @@ export default function AuthPage({ defaultMode = 'login' }) {
                   type={showPassword ? 'text' : 'password'}
                   required
                   minLength={6}
+                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"

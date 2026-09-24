@@ -12,18 +12,27 @@ const documentSchema = new mongoose.Schema(
       type: String,
       default: 'Untitled',
       trim: true,
+      required: true,
+      minlength: 1,
+      maxlength: 200,
     },
     icon: {
       type: String,
       default: '📝',
+      maxlength: 20,
     },
     coverImage: {
       type: String,
       default: '',
+      maxlength: 500,
     },
     content: {
       type: Array,
       default: [],
+      validate: {
+        validator: (value) => Array.isArray(value) && value.length <= 500,
+        message: 'Document content cannot contain more than 500 blocks',
+      },
     },
   },
   {

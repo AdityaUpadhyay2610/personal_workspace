@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.models.js';
+import { validateAuthInput } from '../utils/validation.js';
 
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'personal_workspace_jwt_access_secret_2026';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'personal_workspace_jwt_refresh_secret_2026';
@@ -42,15 +43,8 @@ export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
+    const { errors, normalizedEmail } = validateAuthInput({ name, email, password }, { requireName: true });
+    if (Object.keys(errors).length > 0) return res.status(400).json({ error: 'Please correct the highlighted fields', fields: errors });
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ error: 'An account with this email already exists' });
@@ -84,6 +78,8 @@ export const register = async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+    if (error.code === 11000) return res.status(409).json({ error: 'An account with this email already exists' });
+    if (error.name === 'ValidationError') return res.status(400).json({ error: error.message });
     return res.status(500).json({ error: 'Failed to register account', details: error.message });
   }
 };
@@ -93,11 +89,8 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
+    const { errors, normalizedEmail } = validateAuthInput({ email, password });
+    if (Object.keys(errors).length > 0) return res.status(400).json({ error: 'Please provide a valid email and password', fields: errors });
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });

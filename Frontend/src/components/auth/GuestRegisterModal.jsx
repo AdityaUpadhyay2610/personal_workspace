@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react';
+import { validateAuthData } from '../../services/validation';
 
 export default function GuestRegisterModal({
   isOpen,
@@ -34,9 +35,12 @@ export default function GuestRegisterModal({
 
     try {
       if (viewMode === 'login') {
+        const validationError = validateAuthData({ email, password });
+        if (validationError) throw new Error(validationError);
         await login({ email, password });
       } else {
-        if (!name.trim()) throw new Error('Please provide your name');
+        const validationError = validateAuthData({ name, email, password }, { requireName: true });
+        if (validationError) throw new Error(validationError);
         await register({ name, email, password });
       }
       onClose();
@@ -129,6 +133,7 @@ export default function GuestRegisterModal({
                       type="text"
                       required
                       value={name}
+                      maxLength={80}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Your Name"
                       className="w-full bg-white border border-neutral-200 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-neutral-900 focus:outline-none focus:border-neutral-950"
@@ -147,6 +152,7 @@ export default function GuestRegisterModal({
                     type="email"
                     required
                     value={email}
+                    maxLength={254}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     className="w-full bg-white border border-neutral-200 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-neutral-900 focus:outline-none focus:border-neutral-950"
@@ -164,6 +170,7 @@ export default function GuestRegisterModal({
                     type="password"
                     required
                     minLength={6}
+                    maxLength={128}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"

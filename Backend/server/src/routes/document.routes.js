@@ -7,6 +7,8 @@ import {
   deleteDocument,
 } from '../controllers/document.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
+import { validateRequest } from '../middleware/validate.middleware.js';
+import { createDocumentValidator, updateDocumentValidator } from '../validators/document.validator.js';
 
 const router = express.Router();
 
@@ -15,8 +17,8 @@ router.use(authMiddleware);
 
 router.get('/', getAllDocuments);
 router.get('/:id', getDocumentById);
-router.post('/', createDocument);
-router.put('/:id', updateDocument);
+router.post('/', createDocumentValidator, validateRequest, createDocument);
+router.put('/:id', updateDocumentValidator, validateRequest, updateDocument);
 router.delete('/:id', deleteDocument);
 
 export default router;

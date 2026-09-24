@@ -13,6 +13,19 @@ import {
   FileDown,
   Sparkles,
   UserPlus,
+  ChevronDown,
+  Type,
+  List,
+  ListOrdered,
+  CheckSquare,
+  Code2,
+  Table2,
+  KanbanSquare,
+  Quote,
+  Minus,
+  Bold,
+  Italic,
+  Underline,
 } from 'lucide-react';
 import { exportToDocx } from '../../services/docxExport';
 
@@ -23,10 +36,14 @@ export default function Navbar({
   isGuest = false,
   onToggleSidebar,
   onGuestSavePrompt,
+  onInsertBlock,
+  activeBlock,
+  onFormatChange,
 }) {
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
 
   // Compute stats: word count & block count
   const totalWords = content.reduce((acc, block) => {
@@ -107,6 +124,20 @@ export default function Navbar({
     }
   };
 
+  const editActions = [
+    { type: 'paragraph', label: 'Text', icon: Type },
+    { type: 'h1', label: 'Heading 1', icon: Type },
+    { type: 'bullet', label: 'Bulleted list', icon: List },
+    { type: 'numbered', label: 'Numbered list', icon: ListOrdered },
+    { type: 'todo', label: 'To-do', icon: CheckSquare },
+    { type: 'quote', label: 'Quote', icon: Quote },
+    { type: 'code', label: 'Code', icon: Code2 },
+    { type: 'table', label: 'Table', icon: Table2 },
+    { type: 'board', label: 'Board', icon: KanbanSquare },
+    { type: 'divider', label: 'Divider', icon: Minus },
+  ];
+  const activeStyle = activeBlock?.style || {};
+
   return (
     <header className="h-12 border-b border-neutral-200/80 px-3 sm:px-6 flex items-center justify-between bg-white text-neutral-600 text-sm select-none shrink-0 z-10 shadow-xs">
       {/* Sidebar Toggle & Breadcrumb */}
@@ -170,6 +201,91 @@ export default function Navbar({
 
       {/* Action Buttons */}
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="hidden xl:flex items-center gap-1 border-r border-neutral-200 pr-2">
+          <select
+            value={activeStyle.fontFamily || 'Inter'}
+            onChange={(event) => onFormatChange?.({ fontFamily: event.target.value })}
+            disabled={!activeBlock}
+            className="h-7 max-w-24 rounded border border-neutral-200 bg-white px-1 text-[11px] text-neutral-700 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Font family"
+          >
+            <option value="Inter">Inter</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Arial">Arial</option>
+            <option value="monospace">Mono</option>
+          </select>
+          <select
+            value={activeStyle.fontSize || '16px'}
+            onChange={(event) => onFormatChange?.({ fontSize: event.target.value })}
+            disabled={!activeBlock}
+            className="h-7 w-14 rounded border border-neutral-200 bg-white px-1 text-[11px] text-neutral-700 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Font size"
+          >
+            {['12px', '14px', '16px', '18px', '24px', '32px'].map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+          <label className="relative flex h-7 w-7 cursor-pointer items-center justify-center rounded border border-neutral-200 bg-white" title="Text color">
+            <input
+              type="color"
+              value={activeStyle.color || '#262626'}
+              onChange={(event) => onFormatChange?.({ color: event.target.value })}
+              disabled={!activeBlock}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+              aria-label="Text color"
+            />
+            <span className="h-3.5 w-3.5 rounded-sm border border-neutral-300" style={{ backgroundColor: activeStyle.color || '#262626' }} />
+          </label>
+          {[
+            { key: 'bold', label: 'Bold', Icon: Bold },
+            { key: 'italic', label: 'Italic', Icon: Italic },
+            { key: 'underline', label: 'Underline', Icon: Underline },
+          ].map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onFormatChange?.({ [key]: !activeStyle[key] })}
+              disabled={!activeBlock}
+              className={`flex h-7 w-7 items-center justify-center rounded border text-neutral-600 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${activeStyle[key] ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 bg-white hover:bg-neutral-100'}`}
+              title={label}
+              aria-label={label}
+              aria-pressed={Boolean(activeStyle[key])}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </button>
+          ))}
+        </div>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsEditMenuOpen((open) => !open)}
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-colors cursor-pointer"
+            title="Insert an editing block"
+            aria-expanded={isEditMenuOpen}
+          >
+            <span>Edit</span>
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+          {isEditMenuOpen && (
+            <div className="absolute right-0 top-9 z-30 w-48 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-xl">
+              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">Insert block</p>
+              {editActions.map(({ type, label, icon: Icon }) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    onInsertBlock?.(type);
+                    setIsEditMenuOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-neutral-700 hover:bg-neutral-100"
+                >
+                  <Icon className="h-3.5 w-3.5 text-neutral-500" />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Document Stats Badge */}
         <div className="hidden md:flex items-center gap-1 text-xs text-neutral-400 bg-neutral-100 px-2.5 py-1 rounded-md">
           <FileText className="w-3 h-3 text-neutral-500" />

@@ -6,13 +6,23 @@ import TableBlock from './tableBlock';
 import BoardBlock from './boardBlock';
 import { exportToDocx } from '../../services/docxExport';
 
-export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Untitled' }) {
+export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Untitled', onActiveBlockChange }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuQuery, setMenuQuery] = useState('');
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [activeBlockId, setActiveBlockId] = useState(null);
 
   const blockRefs = useRef({});
+  const getBlockStyle = (block) => ({
+    ...(block.style?.fontFamily ? { fontFamily: block.style.fontFamily } : {}),
+    ...(block.style?.fontSize ? { fontSize: block.style.fontSize } : {}),
+    ...(block.style?.color ? { color: block.style.color } : {}),
+    ...(block.style?.bold ? { fontWeight: 700 } : {}),
+    ...(block.style?.italic ? { fontStyle: 'italic' } : {}),
+    ...(block.style?.underline ? { textDecoration: 'underline' } : {}),
+  });
+
+  const handleBlockFocus = (blockId) => onActiveBlockChange?.(blockId);
 
   // Auto resize helper
   const autoResize = useCallback((el) => {
@@ -422,7 +432,9 @@ export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Unt
                       value={block.text || ''}
                       placeholder="Heading 1"
                       onChange={(e) => handleTextChange(block.id, e.target.value, e.target)}
+                      onFocus={() => handleBlockFocus(block.id)}
                       onKeyDown={(e) => handleKeyDown(e, index, block)}
+                      style={getBlockStyle(block)}
                       className="w-full text-2xl sm:text-3xl font-extrabold text-neutral-900 placeholder-neutral-300 border-none bg-transparent focus:outline-none py-1.5 tracking-tight"
                     />
                   )}
@@ -435,7 +447,9 @@ export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Unt
                       value={block.text || ''}
                       placeholder="Heading 2"
                       onChange={(e) => handleTextChange(block.id, e.target.value, e.target)}
+                      onFocus={() => handleBlockFocus(block.id)}
                       onKeyDown={(e) => handleKeyDown(e, index, block)}
+                      style={getBlockStyle(block)}
                       className="w-full text-xl sm:text-2xl font-bold text-neutral-800 placeholder-neutral-300 border-none bg-transparent focus:outline-none py-1 tracking-tight"
                     />
                   )}
@@ -448,7 +462,9 @@ export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Unt
                       value={block.text || ''}
                       placeholder="Heading 3"
                       onChange={(e) => handleTextChange(block.id, e.target.value, e.target)}
+                      onFocus={() => handleBlockFocus(block.id)}
                       onKeyDown={(e) => handleKeyDown(e, index, block)}
+                      style={getBlockStyle(block)}
                       className="w-full text-lg sm:text-xl font-semibold text-neutral-800 placeholder-neutral-300 border-none bg-transparent focus:outline-none py-1 tracking-tight"
                     />
                   )}
@@ -468,7 +484,9 @@ export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Unt
                         value={block.text || ''}
                         placeholder="To-do..."
                         onChange={(e) => handleTextChange(block.id, e.target.value, e.target)}
+                        onFocus={() => handleBlockFocus(block.id)}
                         onKeyDown={(e) => handleKeyDown(e, index, block)}
+                        style={getBlockStyle(block)}
                         className={`w-full text-base bg-transparent border-none focus:outline-none ${
                           block.checked
                             ? 'line-through text-neutral-400 selection:bg-neutral-200'
@@ -488,7 +506,9 @@ export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Unt
                         value={block.text || ''}
                         placeholder="List item..."
                         onChange={(e) => handleTextChange(block.id, e.target.value, e.target)}
+                        onFocus={() => handleBlockFocus(block.id)}
                         onKeyDown={(e) => handleKeyDown(e, index, block)}
+                        style={getBlockStyle(block)}
                         className="w-full text-base text-neutral-800 placeholder-neutral-300 border-none bg-transparent focus:outline-none py-0.5"
                       />
                     </div>
@@ -506,7 +526,9 @@ export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Unt
                         value={block.text || ''}
                         placeholder="Numbered item..."
                         onChange={(e) => handleTextChange(block.id, e.target.value, e.target)}
+                        onFocus={() => handleBlockFocus(block.id)}
                         onKeyDown={(e) => handleKeyDown(e, index, block)}
+                        style={getBlockStyle(block)}
                         className="w-full text-base text-neutral-800 placeholder-neutral-300 border-none bg-transparent focus:outline-none py-0.5"
                       />
                     </div>
@@ -525,7 +547,9 @@ export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Unt
                         placeholder="Empty quote..."
                         onInput={(e) => autoResize(e.target)}
                         onChange={(e) => handleTextChange(block.id, e.target.value, e.target)}
+                        onFocus={() => handleBlockFocus(block.id)}
                         onKeyDown={(e) => handleKeyDown(e, index, block)}
+                        style={getBlockStyle(block)}
                         className="w-full text-base text-neutral-700 placeholder-neutral-400 resize-none overflow-hidden border-none bg-transparent focus:outline-none leading-relaxed italic"
                       />
                     </div>
@@ -581,7 +605,9 @@ export default function EditorCanvas({ blocks = [], onUpdateBlocks, title = 'Unt
                       placeholder="Type '/' for commands..."
                       onInput={(e) => autoResize(e.target)}
                       onChange={(e) => handleTextChange(block.id, e.target.value, e.target)}
+                      onFocus={() => handleBlockFocus(block.id)}
                       onKeyDown={(e) => handleKeyDown(e, index, block)}
+                      style={getBlockStyle(block)}
                       className="w-full text-base text-neutral-800 placeholder-neutral-300 resize-none overflow-hidden border-none bg-transparent focus:outline-none leading-relaxed py-1"
                     />
                   )}

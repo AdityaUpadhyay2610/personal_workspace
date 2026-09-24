@@ -1,4 +1,5 @@
 import api from './api';
+import { validateDocumentData } from './validation';
 
 /**
  * Document Service CRUD operations
@@ -32,6 +33,8 @@ export const documentServices = {
         { id: crypto.randomUUID(), type: 'paragraph', text: 'Start typing or press "/" to insert blocks...' },
       ],
     };
+    const validationError = validateDocumentData(payload);
+    if (validationError) throw new Error(validationError);
     return api.post('/documents', payload);
   },
 
@@ -40,6 +43,8 @@ export const documentServices = {
    */
   async update(id, updates = {}) {
     if (!id) throw new Error('Document ID is required');
+    const validationError = validateDocumentData(updates, { partial: true });
+    if (validationError) throw new Error(validationError);
     return api.put(`/documents/${id}`, updates);
   },
 

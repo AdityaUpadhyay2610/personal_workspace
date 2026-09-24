@@ -1,4 +1,4 @@
-import { Plus, Trash2, MoreVertical, X } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 
 export default function TableBlock({ block, onChange }) {
   const headers = block.headers || ['Name', 'Tag', 'Notes'];

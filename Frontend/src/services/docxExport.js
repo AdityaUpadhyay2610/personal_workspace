@@ -8,7 +8,6 @@ import {
   TableRow,
   TableCell,
   WidthType,
-  BorderStyle,
   ShadingType,
 } from 'docx';
 
